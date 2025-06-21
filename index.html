@@ -41,6 +41,21 @@
             return new Date().getFullYear() - year;
         }
 
+        function buildCountMap(data, keyIndex, dateIndex) {
+            const seen = new Set();
+            const countMap = {};
+            data.slice(1).forEach(r => {
+                const key = r[keyIndex];
+                const date = r[dateIndex];
+                const uniqueKey = key + '_' + date;
+                if (key && date && !seen.has(uniqueKey)) {
+                    seen.add(uniqueKey);
+                    countMap[key] = (countMap[key] || 0) + 1;
+                }
+            });
+            return countMap;
+        }
+
         function processFiles() {
             const clinicFiles = document.getElementById('clinicFiles').files;
             const bFile = document.getElementById('bFile').files[0];
@@ -88,31 +103,27 @@
         }
 
         function runAnalysis(fileMap) {
-            const clinicData = [];
+            const patientMap = {};
             fileMap.clinic.forEach(room => {
                 room.data.slice(1).forEach(r => {
                     if (r.length >= 3) {
-                        clinicData.push({
-                            id: r[0],
-                            rrn: r[2],
-                            age: calculateAge(r[2]),
-                            room: room.name
-                        });
+                        const id = r[0];
+                        const rrn = r[2];
+                        const key = id + '_' + rrn;
+                        if (!patientMap[key]) {
+                            patientMap[key] = {
+                                id: id,
+                                age: calculateAge(rrn),
+                                room: room.name
+                            };
+                        }
                     }
                 });
             });
 
-            const bMap = {};
-            fileMap['b'].slice(1).forEach(r => {
-                if (!r[0]) return;
-                bMap[r[0]] = (bMap[r[0]] || 0) + 1;
-            });
-
-            const vMap = {};
-            fileMap['v'].slice(1).forEach(r => {
-                if (!r[0]) return;
-                vMap[r[0]] = (vMap[r[0]] || 0) + 1;
-            });
+            const clinicData = Object.values(patientMap);
+            const bMap = buildCountMap(fileMap['b'], 0, 3);
+            const vMap = buildCountMap(fileMap['v'], 0, 3);
 
             const merged = {};
             clinicData.forEach(row => {
@@ -139,10 +150,10 @@
                 const adult = total.filter(r => r.age >= 18);
                 const adultInj = adult.filter(r => r.inj > 0);
 
-                const avgInj = inj.reduce((a, b) => a + b.inj, 0) / inj.length || 0;
-                const avgVisit = inj.reduce((a, b) => a + b.visit, 0) / inj.length || 0;
+                const avgInj = inj.length ? (inj.reduce((a, b) => a + b.inj, 0) / inj.length) : 0;
+                const avgVisit = inj.length ? (inj.reduce((a, b) => a + b.visit, 0) / inj.length) : 0;
+                const visitAvg = total.length ? (total.reduce((a, b) => a + b.visit, 0) / total.length) : 0;
 
-                const visitAvg = total.reduce((a, b) => a + b.visit, 0) / total.length || 0;
                 const rates = [1, 2, 3, 4].map(n =>
                     Math.round(total.filter(r => r.visit === n).length / total.length * 100) + "%"
                 );
@@ -153,12 +164,12 @@
                     구분: label,
                     초진환자수: total.length,
                     초진주사환자수: inj.length,
-                    "초진 주사처방률": Math.round(inj.length / total.length * 100) + "%",
+                    "초진 주사처방률": total.length ? Math.round(inj.length / total.length * 100) + "%" : "0%",
                     "초진 주사환자 평균 주사횟수": avgInj.toFixed(1),
                     "초진 주사환자 평균 내원횟수": avgVisit.toFixed(1),
-                    "초진 주사환자 재진률(2회 이상 내원 비율)": Math.round(inj.filter(r => r.visit >= 2).length / inj.length * 100) + "%",
+                    "초진 주사환자 재진률(2회 이상 내원 비율)": inj.length ? Math.round(inj.filter(r => r.visit >= 2).length / inj.length * 100) + "%" : "0%",
                     "(18세▲)초진환자수": adultInj.length,
-                    "(18세▲)초진주사처방률": Math.round(adultInj.length / adult.length * 100) + "%",
+                    "(18세▲)초진주사처방률": adult.length ? Math.round(adultInj.length / adult.length * 100) + "%" : "0%",
                     "초진 평균 내원횟수": visitAvg.toFixed(1),
                     "초진 재내원율(2회 이상)": revisit,
                     "1회 내원율": rates[0],
