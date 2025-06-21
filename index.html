@@ -103,43 +103,41 @@
     }
 
     function runAnalysis(fileMap) {
-      const patientMap = {};
+      const seenPatient = new Set();
+      const clinicData = [];
+
       fileMap.clinic.forEach(room => {
         room.data.slice(1).forEach(r => {
           if (r.length >= 3) {
             const id = r[0];
             const rrn = r[2];
             const key = id + '_' + rrn;
-            if (!patientMap[key]) {
-              patientMap[key] = {
+            if (!seenPatient.has(key)) {
+              seenPatient.add(key);
+              clinicData.push({
                 id: id,
                 age: calculateAge(rrn),
                 room: room.name
-              };
+              });
             }
           }
         });
       });
 
-      const clinicData = Object.values(patientMap);
       const bMap = buildCountMap(fileMap['b'], 0, 3);
       const vMap = buildCountMap(fileMap['v'], 0, 3);
 
-      const merged = {};
-      clinicData.forEach(row => {
-        merged[row.id] = {
-          id: row.id,
-          age: row.age,
-          room: row.room,
-          inj: bMap[row.id] || 0,
-          visit: vMap[row.id] || 0
-        };
-      });
+      const merged = clinicData.map(row => ({
+        id: row.id,
+        age: row.age,
+        room: row.room,
+        inj: bMap[row.id] || 0,
+        visit: vMap[row.id] || 0
+      }));
 
-      const byRoom = { 전체: [] };
-      Object.values(merged).forEach(r => {
+      const byRoom = { 전체: [...merged] };
+      merged.forEach(r => {
         if (!byRoom[r.room]) byRoom[r.room] = [];
-        byRoom.전체.push(r);
         byRoom[r.room].push(r);
       });
 
@@ -180,7 +178,6 @@
         });
       });
 
-      // 결과 순서 정렬
       const sortOrder = ["전체", "1진료실", "2진료실", "3진료실", "4진료실", "5진료실"];
       result.sort((a, b) => {
         const ai = sortOrder.indexOf(a.구분);
