@@ -111,7 +111,7 @@
           if (r.length >= 3) {
             const id = r[0];
             const rrn = r[2];
-            const key = id + '_' + rrn;
+            const key = id + '_' + rrn + '_' + room.name;
             if (!seenPatient.has(key)) {
               seenPatient.add(key);
               clinicData.push({
