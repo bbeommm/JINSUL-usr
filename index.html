@@ -1,196 +1,207 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <title>초진 주사 및 내원 통계</title>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-    <style>
-        body { font-family: Arial, sans-serif; padding: 20px; background: #f9f9f9; }
-        h1 { color: #333; }
-        .file-section { margin-bottom: 15px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
-        th { background-color: #eee; }
-    </style>
+  <meta charset="UTF-8" />
+  <title>초진 주사 및 내원 통계</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; background: #f9f9f9; }
+    h1 { color: #333; }
+    .file-section { margin-bottom: 15px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    th { background-color: #eee; }
+  </style>
 </head>
 <body>
-    <h1>초진 주사 및 내원 통계</h1>
+  <h1>초진 주사 및 내원 통계</h1>
 
-    <div class="file-section">
-        <label>진료실 파일들 (1~5진):</label>
-        <input type="file" id="clinicFiles" multiple accept=".xlsx" />
-    </div>
-    <div class="file-section">
-        <label>주사 파일 (b):</label>
-        <input type="file" id="bFile" accept=".xlsx" />
-    </div>
-    <div class="file-section">
-        <label>내원 파일 (v):</label>
-        <input type="file" id="vFile" accept=".xlsx" />
-    </div>
-    <button onclick="processFiles()">통계 계산</button>
+  <div class="file-section">
+    <label>진료실 파일들 (1~5진):</label>
+    <input type="file" id="clinicFiles" multiple accept=".xlsx" />
+  </div>
+  <div class="file-section">
+    <label>주사 파일 (b):</label>
+    <input type="file" id="bFile" accept=".xlsx" />
+  </div>
+  <div class="file-section">
+    <label>내원 파일 (v):</label>
+    <input type="file" id="vFile" accept=".xlsx" />
+  </div>
+  <button onclick="processFiles()">통계 계산</button>
 
-    <div id="output"></div>
+  <div id="output"></div>
 
-    <script>
-        function calculateAge(rrn) {
-            if (!rrn || rrn.length < 7) return null;
-            const birth = rrn.replace('-', '');
-            const prefix = ['1', '2'].includes(birth[6]) ? '19' : '20';
-            const year = parseInt(prefix + birth.slice(0, 2));
-            return new Date().getFullYear() - year;
+  <script>
+    function calculateAge(rrn) {
+      if (!rrn || rrn.length < 7) return null;
+      const birth = rrn.replace('-', '');
+      const prefix = ['1', '2'].includes(birth[6]) ? '19' : '20';
+      const year = parseInt(prefix + birth.slice(0, 2));
+      return new Date().getFullYear() - year;
+    }
+
+    function buildCountMap(data, keyIndex, dateIndex) {
+      const seen = new Set();
+      const countMap = {};
+      data.slice(1).forEach(r => {
+        const key = r[keyIndex];
+        const date = r[dateIndex];
+        const uniqueKey = key + '_' + date;
+        if (key && date && !seen.has(uniqueKey)) {
+          seen.add(uniqueKey);
+          countMap[key] = (countMap[key] || 0) + 1;
         }
+      });
+      return countMap;
+    }
 
-        function buildCountMap(data, keyIndex, dateIndex) {
-            const seen = new Set();
-            const countMap = {};
-            data.slice(1).forEach(r => {
-                const key = r[keyIndex];
-                const date = r[dateIndex];
-                const uniqueKey = key + '_' + date;
-                if (key && date && !seen.has(uniqueKey)) {
-                    seen.add(uniqueKey);
-                    countMap[key] = (countMap[key] || 0) + 1;
-                }
-            });
-            return countMap;
-        }
+    function processFiles() {
+      const clinicFiles = document.getElementById('clinicFiles').files;
+      const bFile = document.getElementById('bFile').files[0];
+      const vFile = document.getElementById('vFile').files[0];
 
-        function processFiles() {
-            const clinicFiles = document.getElementById('clinicFiles').files;
-            const bFile = document.getElementById('bFile').files[0];
-            const vFile = document.getElementById('vFile').files[0];
+      if (!clinicFiles.length || !bFile || !vFile) {
+        alert("모든 파일을 업로드해주세요 (진료실 파일들 + 주사 + 내원)");
+        return;
+      }
 
-            if (!clinicFiles.length || !bFile || !vFile) {
-                alert("모든 파일을 업로드해주세요 (진료실 파일들 + 주사 + 내원)");
-                return;
+      const fileMap = { clinic: [] };
+      let totalToLoad = clinicFiles.length + 2;
+      let loaded = 0;
+
+      const onLoad = () => {
+        if (++loaded === totalToLoad) runAnalysis(fileMap);
+      };
+
+      [...clinicFiles].forEach(file => {
+        const reader = new FileReader();
+        reader.onload = e => {
+          const workbook = XLSX.read(e.target.result, { type: 'binary' });
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          const data = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+          const roomName = file.name.replace('.xlsx', '') + '진';
+          fileMap.clinic.push({ name: roomName, data });
+          onLoad();
+        };
+        reader.readAsBinaryString(file);
+      });
+
+      [
+        { file: bFile, key: 'b' },
+        { file: vFile, key: 'v' }
+      ].forEach(({ file, key }) => {
+        const reader = new FileReader();
+        reader.onload = e => {
+          const workbook = XLSX.read(e.target.result, { type: 'binary' });
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          fileMap[key] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+          onLoad();
+        };
+        reader.readAsBinaryString(file);
+      });
+    }
+
+    function runAnalysis(fileMap) {
+      const patientMap = {};
+      fileMap.clinic.forEach(room => {
+        room.data.slice(1).forEach(r => {
+          if (r.length >= 3) {
+            const id = r[0];
+            const rrn = r[2];
+            const key = id + '_' + rrn;
+            if (!patientMap[key]) {
+              patientMap[key] = {
+                id: id,
+                age: calculateAge(rrn),
+                room: room.name
+              };
             }
+          }
+        });
+      });
 
-            const fileMap = { clinic: [] };
-            let totalToLoad = clinicFiles.length + 2;
-            let loaded = 0;
+      const clinicData = Object.values(patientMap);
+      const bMap = buildCountMap(fileMap['b'], 0, 3);
+      const vMap = buildCountMap(fileMap['v'], 0, 3);
 
-            const onLoad = () => {
-                if (++loaded === totalToLoad) runAnalysis(fileMap);
-            };
+      const merged = {};
+      clinicData.forEach(row => {
+        merged[row.id] = {
+          id: row.id,
+          age: row.age,
+          room: row.room,
+          inj: bMap[row.id] || 0,
+          visit: vMap[row.id] || 0
+        };
+      });
 
-            [...clinicFiles].forEach(file => {
-                const reader = new FileReader();
-                reader.onload = e => {
-                    const workbook = XLSX.read(e.target.result, { type: 'binary' });
-                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const data = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-                    const roomName = file.name.replace('.xlsx', '') + '진';
-                    fileMap.clinic.push({ name: roomName, data });
-                    onLoad();
-                };
-                reader.readAsBinaryString(file);
-            });
+      const byRoom = { 전체: [] };
+      Object.values(merged).forEach(r => {
+        if (!byRoom[r.room]) byRoom[r.room] = [];
+        byRoom.전체.push(r);
+        byRoom[r.room].push(r);
+      });
 
-            [
-                { file: bFile, key: 'b' },
-                { file: vFile, key: 'v' }
-            ].forEach(({ file, key }) => {
-                const reader = new FileReader();
-                reader.onload = e => {
-                    const workbook = XLSX.read(e.target.result, { type: 'binary' });
-                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                    fileMap[key] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-                    onLoad();
-                };
-                reader.readAsBinaryString(file);
-            });
-        }
+      const result = [];
+      Object.entries(byRoom).forEach(([label, rows]) => {
+        const total = rows.filter(r => r.visit >= 1);
+        const inj = total.filter(r => r.inj > 0);
+        const adult = total.filter(r => r.age >= 18);
+        const adultInj = adult.filter(r => r.inj > 0);
 
-        function runAnalysis(fileMap) {
-            const patientMap = {};
-            fileMap.clinic.forEach(room => {
-                room.data.slice(1).forEach(r => {
-                    if (r.length >= 3) {
-                        const id = r[0];
-                        const rrn = r[2];
-                        const key = id + '_' + rrn;
-                        if (!patientMap[key]) {
-                            patientMap[key] = {
-                                id: id,
-                                age: calculateAge(rrn),
-                                room: room.name
-                            };
-                        }
-                    }
-                });
-            });
+        const avgInj = inj.length ? (inj.reduce((a, b) => a + b.inj, 0) / inj.length) : 0;
+        const avgVisit = inj.length ? (inj.reduce((a, b) => a + b.visit, 0) / inj.length) : 0;
+        const visitAvg = total.length ? (total.reduce((a, b) => a + b.visit, 0) / total.length) : 0;
 
-            const clinicData = Object.values(patientMap);
-            const bMap = buildCountMap(fileMap['b'], 0, 3);
-            const vMap = buildCountMap(fileMap['v'], 0, 3);
+        const rates = [1, 2, 3, 4].map(n =>
+          Math.round(total.filter(r => r.visit === n).length / total.length * 100) + "%"
+        );
+        const over5 = Math.round(total.filter(r => r.visit >= 5).length / total.length * 100) + "%";
+        const revisit = Math.round(total.filter(r => r.visit >= 2).length / total.length * 100) + "%";
 
-            const merged = {};
-            clinicData.forEach(row => {
-                merged[row.id] = {
-                    id: row.id,
-                    age: row.age,
-                    room: row.room,
-                    inj: bMap[row.id] || 0,
-                    visit: vMap[row.id] || 0
-                };
-            });
+        result.push({
+          구분: label,
+          초진환자수: total.length,
+          초진주사환자수: inj.length,
+          "초진 주사처방률": total.length ? Math.round(inj.length / total.length * 100) + "%" : "0%",
+          "초진 주사환자 평균 주사횟수": avgInj.toFixed(1),
+          "초진 주사환자 평균 내원횟수": avgVisit.toFixed(1),
+          "초진 주사환자 재진률(2회 이상 내원 비율)": inj.length ? Math.round(inj.filter(r => r.visit >= 2).length / inj.length * 100) + "%" : "0%",
+          "(18세▲)초진환자수": adultInj.length,
+          "(18세▲)초진주사처방률": adult.length ? Math.round(adultInj.length / adult.length * 100) + "%" : "0%",
+          "초진 평균 내원횟수": visitAvg.toFixed(1),
+          "초진 재내원율(2회 이상)": revisit,
+          "1회 내원율": rates[0],
+          "2회 내원율": rates[1],
+          "3회 내원율": rates[2],
+          "4회 내원율": rates[3],
+          "5회 이상 내원율": over5
+        });
+      });
 
-            const byRoom = { 전체: [] };
-            Object.values(merged).forEach(r => {
-                if (!byRoom[r.room]) byRoom[r.room] = [];
-                byRoom.전체.push(r);
-                byRoom[r.room].push(r);
-            });
+      // 결과 순서 정렬
+      const sortOrder = ["전체", "1진료실", "2진료실", "3진료실", "4진료실", "5진료실"];
+      result.sort((a, b) => {
+        const ai = sortOrder.indexOf(a.구분);
+        const bi = sortOrder.indexOf(b.구분);
+        if (ai === -1 && bi === -1) return a.구분.localeCompare(b.구분);
+        if (ai === -1) return 1;
+        if (bi === -1) return -1;
+        return ai - bi;
+      });
 
-            const result = [];
-            Object.entries(byRoom).forEach(([label, rows]) => {
-                const total = rows.filter(r => r.visit >= 1);
-                const inj = total.filter(r => r.inj > 0);
-                const adult = total.filter(r => r.age >= 18);
-                const adultInj = adult.filter(r => r.inj > 0);
+      document.getElementById('output').innerHTML = renderTable(result);
+    }
 
-                const avgInj = inj.length ? (inj.reduce((a, b) => a + b.inj, 0) / inj.length) : 0;
-                const avgVisit = inj.length ? (inj.reduce((a, b) => a + b.visit, 0) / inj.length) : 0;
-                const visitAvg = total.length ? (total.reduce((a, b) => a + b.visit, 0) / total.length) : 0;
-
-                const rates = [1, 2, 3, 4].map(n =>
-                    Math.round(total.filter(r => r.visit === n).length / total.length * 100) + "%"
-                );
-                const over5 = Math.round(total.filter(r => r.visit >= 5).length / total.length * 100) + "%";
-                const revisit = Math.round(total.filter(r => r.visit >= 2).length / total.length * 100) + "%";
-
-                result.push({
-                    구분: label,
-                    초진환자수: total.length,
-                    초진주사환자수: inj.length,
-                    "초진 주사처방률": total.length ? Math.round(inj.length / total.length * 100) + "%" : "0%",
-                    "초진 주사환자 평균 주사횟수": avgInj.toFixed(1),
-                    "초진 주사환자 평균 내원횟수": avgVisit.toFixed(1),
-                    "초진 주사환자 재진률(2회 이상 내원 비율)": inj.length ? Math.round(inj.filter(r => r.visit >= 2).length / inj.length * 100) + "%" : "0%",
-                    "(18세▲)초진환자수": adultInj.length,
-                    "(18세▲)초진주사처방률": adult.length ? Math.round(adultInj.length / adult.length * 100) + "%" : "0%",
-                    "초진 평균 내원횟수": visitAvg.toFixed(1),
-                    "초진 재내원율(2회 이상)": revisit,
-                    "1회 내원율": rates[0],
-                    "2회 내원율": rates[1],
-                    "3회 내원율": rates[2],
-                    "4회 내원율": rates[3],
-                    "5회 이상 내원율": over5
-                });
-            });
-
-            document.getElementById('output').innerHTML = renderTable(result);
-        }
-
-        function renderTable(data) {
-            if (!data.length) return "";
-            const headers = Object.keys(data[0]);
-            let html = "<table><thead><tr>" + headers.map(h => `<th>${h}</th>`).join('') + "</tr></thead><tbody>";
-            html += data.map(row => `<tr>${headers.map(h => `<td>${row[h]}</td>`).join('')}</tr>`).join('');
-            html += "</tbody></table>";
-            return html;
-        }
-    </script>
+    function renderTable(data) {
+      if (!data.length) return "";
+      const headers = Object.keys(data[0]);
+      let html = "<table><thead><tr>" + headers.map(h => `<th>${h}</th>`).join('') + "</tr></thead><tbody>";
+      html += data.map(row => `<tr>${headers.map(h => `<td>${row[h]}</td>`).join('')}</tr>`).join('');
+      html += "</tbody></table>";
+      return html;
+    }
+  </script>
 </body>
 </html>
