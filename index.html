@@ -44,7 +44,7 @@
     function buildCountMap(data, keyIndex, dateIndex) {
       const seen = new Set();
       const countMap = {};
-      data.slice(1).forEach(r => {
+      data.slice(2).forEach(r => {
         const key = r[keyIndex]?.toString().trim();
         const date = r[dateIndex];
         const uniqueKey = key + '_' + date;
@@ -80,7 +80,7 @@
           const workbook = XLSX.read(e.target.result, { type: 'binary' });
           const sheet = workbook.Sheets[workbook.SheetNames[0]];
           const data = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-          const roomName = file.name.replace('.xlsx', '') + '진';
+          const roomName = file.name.replace('.xlsx', '') + '진료실';
           fileMap.clinic.push({ name: roomName, data });
           onLoad();
         };
@@ -107,7 +107,7 @@
       const clinicData = [];
 
       fileMap.clinic.forEach(room => {
-        room.data.slice(1).forEach(r => {
+        room.data.slice(2).forEach(r => {
           const id = r[0]?.toString().trim();
           const rrn = r[2]?.toString().trim();
           const key = id + '_' + rrn + '_' + room.name;
@@ -116,7 +116,8 @@
             clinicData.push({
               id: id,
               age: calculateAge(rrn),
-              room: room.name
+              room: room.name,
+              rrn: rrn
             });
           }
         });
@@ -129,6 +130,7 @@
         id: row.id,
         age: row.age,
         room: row.room,
+        rrn: row.rrn,
         inj: bMap[row.id] || 0,
         visit: vMap[row.id] || 0
       }));
@@ -141,7 +143,7 @@
 
       const result = [];
       Object.entries(byRoom).forEach(([label, rows]) => {
-        const total = rows.filter(r => r.visit >= 1);
+        const total = rows;  // visit >=1 제거
         const inj = total.filter(r => r.inj > 0);
         const adult = total.filter(r => r.age >= 18);
         const adultInj = adult.filter(r => r.inj > 0);
