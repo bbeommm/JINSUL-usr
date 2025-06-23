@@ -44,8 +44,8 @@
     function buildCountMap(data, keyIndex, dateIndex) {
       const seen = new Set();
       const countMap = {};
-      data.slice(1).forEach(r => {
-        const key = r[keyIndex];
+      data.slice(2).forEach(r => {
+        const key = r[keyIndex]?.toString().trim();
         const date = r[dateIndex];
         const uniqueKey = key + '_' + date;
         if (key && date && !seen.has(uniqueKey)) {
@@ -107,19 +107,17 @@
       const clinicData = [];
 
       fileMap.clinic.forEach(room => {
-        room.data.slice(1).forEach(r => {
-          if (r.length >= 3) {
-            const id = r[0];
-            const rrn = r[2];
-            const key = id + '_' + rrn + '_' + room.name;
-            if (!seenPatient.has(key)) {
-              seenPatient.add(key);
-              clinicData.push({
-                id: id,
-                age: calculateAge(rrn),
-                room: room.name
-              });
-            }
+        room.data.slice(2).forEach(r => {
+          const id = r[0]?.toString().trim();
+          const rrn = r[2]?.toString().trim();
+          const key = id + '_' + rrn + '_' + room.name;
+          if (id && rrn && !seenPatient.has(key)) {
+            seenPatient.add(key);
+            clinicData.push({
+              id: id,
+              age: calculateAge(rrn),
+              room: room.name
+            });
           }
         });
       });
