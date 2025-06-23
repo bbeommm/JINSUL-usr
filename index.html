@@ -34,7 +34,7 @@
 
   <script>
     function calculateAge(rrn) {
-      if (!rrn || rrn.length < 7) return null;
+      if (!rrn || rrn.length < 7 || !rrn.includes('-')) return null;
       const birth = rrn.replace('-', '');
       const prefix = ['1', '2'].includes(birth[6]) ? '19' : '20';
       const year = parseInt(prefix + birth.slice(0, 2));
@@ -44,7 +44,7 @@
     function buildCountMap(data, keyIndex, dateIndex) {
       const seen = new Set();
       const countMap = {};
-      data.slice(2).forEach(r => {
+      data.slice(1).forEach(r => {
         const key = r[keyIndex]?.toString().trim();
         const date = r[dateIndex];
         const uniqueKey = key + '_' + date;
@@ -107,11 +107,11 @@
       const clinicData = [];
 
       fileMap.clinic.forEach(room => {
-        room.data.slice(2).forEach(r => {
+        room.data.slice(1).forEach(r => {
           const id = r[0]?.toString().trim();
           const rrn = r[2]?.toString().trim();
           const key = id + '_' + rrn + '_' + room.name;
-          if (id && rrn && !seenPatient.has(key)) {
+          if (id && rrn && rrn.length >= 7 && rrn.includes('-') && !seenPatient.has(key)) {
             seenPatient.add(key);
             clinicData.push({
               id: id,
