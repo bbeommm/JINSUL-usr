@@ -45,7 +45,7 @@
       const seen = new Set();
       const countMap = {};
       if (!data) return countMap;
-      data.slice(2).forEach(r => {
+      (data.length > 2 ? data.slice(2) : data).forEach(r => {
         const key = r[keyIndex]?.toString().trim();
         const date = r[dateIndex];
         const uniqueKey = key + '_' + date;
@@ -116,7 +116,7 @@
       const clinicData = [];
 
       fileMap.clinic.forEach(room => {
-        room.data.slice(2).forEach(r => {
+        (room.data.length > 2 ? room.data.slice(2) : room.data).forEach(r => {
           const id = r[0]?.toString().trim();
           const rrn = r[2]?.toString().trim();
           const key = id + '_' + rrn + '_' + room.name;
@@ -132,8 +132,8 @@
         });
       });
 
-      const bMap = buildCountMap(fileMap['b'], 0, 3);
-      const vMap = buildCountMap(fileMap['v'], 0, 3);
+      const bMap = fileMap['b'] ? buildCountMap(fileMap['b'], 0, 3) : {};
+      const vMap = fileMap['v'] ? buildCountMap(fileMap['v'], 0, 3) : {};
 
       const merged = clinicData.map(row => ({
         id: row.id,
@@ -168,7 +168,14 @@
         const revisit = Math.round(total.filter(r => r.visit >= 2).length / total.length * 100) + "%";
 
         result.push({
-          $1"(18세▲)초진환자수": adult.length,
+          구분: label,
+          초진환자수: total.length,
+          초진주사환자수: inj.length,
+          "초진 주사처방률": total.length ? Math.round(inj.length / total.length * 100) + "%" : "0%",
+          "초진 주사환자 평균 주사횟수": avgInj.toFixed(1),
+          "초진 주사환자 평균 내원횟수": avgVisit.toFixed(1),
+          "초진 주사환자 재진률(2회 이상 내원 비율)": inj.length ? Math.round(inj.filter(r => r.visit >= 2).length / inj.length * 100) + "%" : "0%",
+          "(18세▲)초진환자수": adult.length,
           "(18세▲)초진환자주사수": adultInj.length,
           "(18세▲)초진주사처방률": adult.length ? Math.round(adultInj.length / adult.length * 100) + "%" : "0%",
           "초진 평균 내원횟수": visitAvg.toFixed(1),
