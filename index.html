@@ -168,14 +168,8 @@
         const revisit = Math.round(total.filter(r => r.visit >= 2).length / total.length * 100) + "%";
 
         result.push({
-          구분: label,
-          초진환자수: total.length,
-          초진주사환자수: inj.length,
-          "초진 주사처방률": total.length ? Math.round(inj.length / total.length * 100) + "%" : "0%",
-          "초진 주사환자 평균 주사횟수": avgInj.toFixed(1),
-          "초진 주사환자 평균 내원횟수": avgVisit.toFixed(1),
-          "초진 주사환자 재진률(2회 이상 내원 비율)": inj.length ? Math.round(inj.filter(r => r.visit >= 2).length / inj.length * 100) + "%" : "0%",
-          "(18세▲)초진환자수": adultInj.length,
+          $1"(18세▲)초진환자수": adult.length,
+          "(18세▲)초진환자주사수": adultInj.length,
           "(18세▲)초진주사처방률": adult.length ? Math.round(adultInj.length / adult.length * 100) + "%" : "0%",
           "초진 평균 내원횟수": visitAvg.toFixed(1),
           "초진 재내원율(2회 이상)": revisit,
@@ -203,6 +197,7 @@
     function renderTable(data) {
       if (!data.length) return "";
       const headers = Object.keys(data[0]);
+      headers.splice(headers.indexOf("(18세▲)초진환자주사수"), 0, "(18세▲)초진환자수");
       let html = "<table><thead><tr>" + headers.map(h => `<th>${h}</th>`).join('') + "</tr></thead><tbody>";
       html += data.map(row => `<tr>${headers.map(h => `<td>${row[h]}</td>`).join('')}</tr>`).join('');
       html += "</tbody></table>";
