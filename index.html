@@ -2,52 +2,157 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>/의사랑/초진 주사 및 내원 통계</title>
+  <title>/의사랑/초진 주사 및 내원 통계 – 개선版</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; background: #f9f9f9; }
-    h1 { color: #333; }
-    .file-section { margin-bottom: 15px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
-    th { background-color: #eee; }
+    :root {
+      --bg: #0f172a;        /* slate-900 */
+      --card: #111827;      /* gray-900 */
+      --muted: #94a3b8;     /* slate-400 */
+      --text: #e5e7eb;      /* gray-200 */
+      --accent: #22d3ee;    /* cyan-400 */
+      --accent-2: #a78bfa;  /* violet-400 */
+      --ok: #34d399;        /* green-400 */
+      --warn: #fbbf24;      /* amber-400 */
+      --bad: #f87171;       /* red-400 */
+    }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; margin: 0; background: var(--bg); color: var(--text); }
+    header { padding: 28px 20px 0; }
+    h1 { margin: 0 0 8px; font-size: 24px; letter-spacing: -0.02em; }
+    p.sub { margin: 0; color: var(--muted); font-size: 13px; }
+
+    .container { padding: 20px; max-width: 1200px; margin: 0 auto; }
+    .grid { display: grid; gap: 14px; grid-template-columns: repeat(12, 1fr); }
+    .card { background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.005)); border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
+
+    .file-card { grid-column: 1 / -1; }
+    .file-row { display: grid; gap: 10px; grid-template-columns: 1fr 1fr 1fr 120px; align-items: end; }
+    label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    input[type="file"] { width: 100%; padding: 8px; border-radius: 10px; border: 1px dashed rgba(255,255,255,0.15); background: rgba(255,255,255,0.02); color: var(--text); }
+    button { height: 40px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.14); background: radial-gradient(120% 120% at 0% 0%, rgba(34,211,238,.25), rgba(167,139,250,.15)); color: white; font-weight: 600; cursor: pointer; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .summary { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .summary .metric { padding: 12px; border-radius: 14px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); }
+    .metric h3 { margin: 0; font-size: 12px; color: var(--muted); }
+    .metric p { margin: 6px 0 0; font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
+
+    .table-card { grid-column: 1 / -1; overflow: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { border-bottom: 1px solid rgba(255,255,255,0.08); padding: 10px 8px; text-align: center; white-space: nowrap; }
+    th { position: sticky; top: 0; background: rgba(15,23,42,0.85); backdrop-filter: blur(6px); z-index: 1; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+
+    .row-ok { color: var(--ok); }
+    .row-warn { color: var(--warn); }
+    .row-bad { color: var(--bad); }
+
+    .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+
+    .foot { color: var(--muted); font-size: 12px; margin-top: 14px; }
   </style>
 </head>
 <body>
-  <h1>/의사랑/초진 주사 및 내원 통계</h1>
+  <header>
+    <h1>/의사랑/ 초진 주사 및 내원 통계</h1>
+    <p class="sub">여러 진료실 파일(1~5진) + 주사(b) + 내원(v)을 합쳐 통계를 산출합니다. (개인정보 최소화 처리)</p>
+  </header>
 
-  <div class="file-section">
-    <label>진료실 파일들 (1~5진):</label>
-    <input type="file" id="clinicFiles" multiple accept=".xlsx" />
-  </div>
-  <div class="file-section">
-    <label>주사 파일 (b):</label>
-    <input type="file" id="bFile" accept=".xlsx" />
-  </div>
-  <div class="file-section">
-    <label>내원 파일 (v):</label>
-    <input type="file" id="vFile" accept=".xlsx" />
-  </div>
-  <button onclick="processFiles()">통계 계산</button>
+  <div class="container">
+    <div class="card file-card">
+      <div class="file-row">
+        <div>
+          <label>진료실 파일들 (1~5진, 여러 개 선택)</label>
+          <input type="file" id="clinicFiles" multiple accept=".xlsx" />
+        </div>
+        <div>
+          <label>주사 파일 (b) – 선택</label>
+          <input type="file" id="bFile" accept=".xlsx" />
+        </div>
+        <div>
+          <label>내원 파일 (v) – 선택</label>
+          <input type="file" id="vFile" accept=".xlsx" />
+        </div>
+        <div>
+          <button id="runBtn">통계 계산</button>
+        </div>
+      </div>
+      <div class="actions">
+        <button id="downloadBtn" disabled>결과 다운로드(.xlsx)</button>
+        <button id="clearBtn">초기화</button>
+      </div>
+      <div class="foot">⚠️ 파일은 브라우저 내에서만 처리되며 외부로 업로드되지 않습니다.</div>
+    </div>
 
-  <div id="output"></div>
+    <div class="summary" id="summary" style="display:none">
+      <div class="metric"><h3>전체 초진환자수</h3><p id="m-total">-</p></div>
+      <div class="metric"><h3>초진 주사처방률</h3><p id="m-inj-rate">-</p></div>
+      <div class="metric"><h3>초진 평균 내원횟수</h3><p id="m-visit-avg">-</p></div>
+      <div class="metric"><h3>재내원율(2회 이상)</h3><p id="m-revisit">-</p></div>
+    </div>
+
+    <div class="card table-card">
+      <div id="output"></div>
+    </div>
+  </div>
 
   <script>
+    const $ = (sel) => document.querySelector(sel);
+
+    // Excel serial date -> YYYY-MM-DD
+    function excelDateToISO(v) {
+      if (!v) return '';
+      if (typeof v === 'string') return v.trim();
+      if (typeof v === 'number') {
+        const utc_days = Math.floor(v - 25569);
+        const utc_value = utc_days * 86400; // seconds
+        const date_info = new Date(utc_value * 1000);
+        const year = date_info.getUTCFullYear();
+        const m = String(date_info.getUTCMonth() + 1).padStart(2, '0');
+        const d = String(date_info.getUTCDate()).padStart(2, '0');
+        return `${year}-${m}-${d}`;
+      }
+      if (v instanceof Date) {
+        const y = v.getFullYear();
+        const m = String(v.getMonth() + 1).padStart(2, '0');
+        const d = String(v.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      }
+      return String(v);
+    }
+
+    // 주민번호 → 만 나이 (YYMMDD-#######)
     function calculateAge(rrn) {
-      if (!rrn || rrn.length < 7 || !rrn.includes('-')) return null;
-      const birth = rrn.replace('-', '');
-      const prefix = ['1', '2'].includes(birth[6]) ? '19' : '20';
-      const year = parseInt(prefix + birth.slice(0, 2));
-      return new Date().getFullYear() - year;
+      if (!rrn || typeof rrn !== 'string' || !rrn.includes('-')) return null;
+      const [ymd, tail] = rrn.split('-');
+      if (!ymd || !tail || ymd.length !== 6 || tail.length < 1) return null;
+      const s = tail[0];
+      let century;
+      if (s === '1' || s === '2' || s === '5' || s === '6') century = 1900; // 5,6: 외국인 1900~
+      else if (s === '3' || s === '4' || s === '7' || s === '8') century = 2000; // 7,8: 외국인 2000~
+      else return null;
+      const yy = parseInt(ymd.slice(0,2),10);
+      const mm = parseInt(ymd.slice(2,4),10);
+      const dd = parseInt(ymd.slice(4,6),10);
+      const birth = new Date(century + yy, mm - 1, dd);
+      if (isNaN(birth)) return null;
+      const today = new Date();
+      let age = today.getFullYear() - birth.getFullYear();
+      const m = today.getMonth() - birth.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+      return age;
     }
 
     function buildCountMap(data, keyIndex, dateIndex) {
       const seen = new Set();
       const countMap = {};
       if (!data) return countMap;
-      (data.length > 2 ? data.slice(2) : data).forEach(r => {
+      const rows = data.length > 2 ? data.slice(2) : data; // 헤더 2줄 스킵
+      rows.forEach(r => {
         const key = r[keyIndex]?.toString().trim();
-        const date = r[dateIndex];
+        const date = excelDateToISO(r[dateIndex]);
         const uniqueKey = key + '_' + date;
         if (key && date && !seen.has(uniqueKey)) {
           seen.add(uniqueKey);
@@ -57,158 +162,324 @@
       return countMap;
     }
 
-    function processFiles() {
-      const clinicFiles = document.getElementById('clinicFiles').files;
-      const bFile = document.getElementById('bFile').files[0];
-      const vFile = document.getElementById('vFile').files[0];
-
-      if (!clinicFiles.length) {
-        alert("진료실 파일은 반드시 업로드해야 합니다");
-        return;
-      }
-
-      const fileMap = { clinic: [] };
-      let totalToLoad = clinicFiles.length + (bFile ? 1 : 0) + (vFile ? 1 : 0);
-      let loaded = 0;
-
-      const onLoad = () => {
-        if (++loaded === totalToLoad) runAnalysis(fileMap);
-      };
-
-      [...clinicFiles].forEach(file => {
-        const reader = new FileReader();
-        reader.onload = e => {
-          const workbook = XLSX.read(e.target.result, { type: 'binary' });
-          const sheet = workbook.Sheets[workbook.SheetNames[0]];
-          const data = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-          const roomName = file.name.replace('.xlsx', '') + '진료실';
-          fileMap.clinic.push({ name: roomName, data });
-          onLoad();
-        };
-        reader.readAsBinaryString(file);
-      });
-
-      if (bFile) {
-        const reader = new FileReader();
-        reader.onload = e => {
-          const workbook = XLSX.read(e.target.result, { type: 'binary' });
-          const sheet = workbook.Sheets[workbook.SheetNames[0]];
-          fileMap['b'] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-          onLoad();
-        };
-        reader.readAsBinaryString(bFile);
-      }
-
-      if (vFile) {
-        const reader = new FileReader();
-        reader.onload = e => {
-          const workbook = XLSX.read(e.target.result, { type: 'binary' });
-          const sheet = workbook.Sheets[workbook.SheetNames[0]];
-          fileMap['v'] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-          onLoad();
-        };
-        reader.readAsBinaryString(vFile);
-      }
+    function maskRRN(rrn) {
+      if (!rrn || !rrn.includes('-')) return '';
+      return rrn.slice(0, 8) + '******';
     }
 
-    function runAnalysis(fileMap) {
-      const seenPatient = new Set();
-      const clinicData = [];
+    async function readXlsx(file) {
+      const ab = await file.arrayBuffer();
+      const wb = XLSX.read(ab, { type: 'array' });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      return XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true });
+    }
 
-      fileMap.clinic.forEach(room => {
-        (room.data.length > 2 ? room.data.slice(2) : room.data).forEach(r => {
-          const id = r[0]?.toString().trim();
-          const rrn = r[2]?.toString().trim();
-          const key = id + '_' + rrn + '_' + room.name;
-          if (id && rrn && rrn.length >= 7 && rrn.includes('-') && !seenPatient.has(key)) {
-            seenPatient.add(key);
-            clinicData.push({
-              id: id,
-              age: calculateAge(rrn),
-              room: room.name,
-              rrn: rrn
-            });
-          }
-        });
-      });
+    function renderTable(data) {
+      if (!data.length) return '';
+      const headers = Object.keys(data[0]);
+      let html = '<table><thead><tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr></thead><tbody>';
+      html += data.map(row => `<tr>${headers.map(h => `<td>${row[h] ?? ''}</td>`).join('')}</tr>`).join('');
+      html += '</tbody></table>';
+      return html;
+    }
 
-      const bMap = fileMap['b'] ? buildCountMap(fileMap['b'], 0, 3) : {};
-      const vMap = fileMap['v'] ? buildCountMap(fileMap['v'], 0, 3) : {};
+    function toPercent(numer, denom) {
+      if (!denom) return '0%';
+      return Math.round((numer / denom) * 100) + '%';
+    }
 
-      const merged = clinicData.map(row => ({
-        id: row.id,
-        age: row.age,
-        room: row.room,
-        rrn: row.rrn,
-        inj: bMap[row.id] || 0,
-        visit: vMap[row.id] || 0
-      }));
+    function average(arr) {
+      if (!arr.length) return 0;
+      return arr.reduce((a,b) => a + b, 0) / arr.length;
+    }
 
-      const byRoom = { 전체: [...merged] };
+    function normalizeRoomName(filename) {
+      // 파일명이 '1.xlsx' 또는 '1진료실.xlsx' 등일 때 "1진료실" 형태로 통일
+      const base = filename.replace(/\.xlsx$/i, '').replace(/진료실/g, '').trim();
+      const onlyNum = base.match(/\d+/)?.[0] ?? base;
+      return `${onlyNum}진료실`;
+    }
+
+    function computeStats(merged) {
+      const byRoom = { '전체': [...merged] };
       merged.forEach(r => {
         if (!byRoom[r.room]) byRoom[r.room] = [];
         byRoom[r.room].push(r);
       });
 
       const result = [];
-      Object.entries(byRoom).forEach(([label, rows]) => {
+      for (const [label, rows] of Object.entries(byRoom)) {
         const total = rows;
         const inj = total.filter(r => r.inj > 0);
-        const adult = total.filter(r => r.age >= 18);
+        const adult = total.filter(r => (r.age ?? 0) >= 18);
         const adultInj = adult.filter(r => r.inj > 0);
 
-        const avgInj = inj.length ? (inj.reduce((a, b) => a + b.inj, 0) / inj.length) : 0;
-        const avgVisit = inj.length ? (inj.reduce((a, b) => a + b.visit, 0) / inj.length) : 0;
-        const visitAvg = total.length ? (total.reduce((a, b) => a + b.visit, 0) / total.length) : 0;
+        const avgInj = average(inj.map(r => r.inj));
+        const avgVisitAmongInj = average(inj.map(r => r.visit));
+        const visitAvgAll = average(total.map(r => r.visit));
 
-        const rates = [1, 2, 3, 4].map(n =>
-          Math.round(total.filter(r => r.visit === n).length / total.length * 100) + "%"
-        );
-        const over5 = Math.round(total.filter(r => r.visit >= 5).length / total.length * 100) + "%";
-        const revisit = Math.round(total.filter(r => r.visit >= 2).length / total.length * 100) + "%";
+        const cnt1 = total.filter(r => r.visit === 1).length;
+        const cnt2 = total.filter(r => r.visit === 2).length;
+        const cnt3 = total.filter(r => r.visit === 3).length;
+        const cnt4 = total.filter(r => r.visit === 4).length;
+        const cnt5p = total.filter(r => r.visit >= 5).length;
+        const revisit2pAll = total.filter(r => r.visit >= 2).length;
+        const revisit2pInj = inj.filter(r => r.visit >= 2).length;
 
         result.push({
-          구분: label,
-          초진환자수: total.length,
-          초진주사환자수: inj.length,
-          "초진 주사처방률": total.length ? Math.round(inj.length / total.length * 100) + "%" : "0%",
-          "초진 주사환자 평균 주사횟수": avgInj.toFixed(1),
-          "초진 주사환자 평균 내원횟수": avgVisit.toFixed(1),
-          "초진 주사환자 재진률(2회 이상 내원 비율)": inj.length ? Math.round(inj.filter(r => r.visit >= 2).length / inj.length * 100) + "%" : "0%",
-          "(18세▲)초진환자수": adult.length,
-          "(18세▲)초진환자주사수": adultInj.length,
-          "(18세▲)초진주사처방률": adult.length ? Math.round(adultInj.length / adult.length * 100) + "%" : "0%",
-          "초진 평균 내원횟수": visitAvg.toFixed(1),
-          "초진 재내원율(2회 이상)": revisit,
-          "1회 내원율": rates[0],
-          "2회 내원율": rates[1],
-          "3회 내원율": rates[2],
-          "4회 내원율": rates[3],
-          "5회 이상 내원율": over5
+          '구분': label,
+          '초진환자수': total.length,
+          '초진주사환자수': inj.length,
+          '초진 주사처방률': toPercent(inj.length, total.length),
+          '초진 주사환자 평균 주사횟수': avgInj.toFixed(1),
+          '초진 주사환자 평균 내원횟수': avgVisitAmongInj.toFixed(1),
+          '초진 주사환자 재진률(2회 이상)': toPercent(revisit2pInj, inj.length),
+          '(18세▲)초진환자수': adult.length,
+          '(18세▲)초진환자주사수': adultInj.length,
+          '(18세▲)초진주사처방률': toPercent(adultInj.length, adult.length),
+          '초진 평균 내원횟수': visitAvgAll.toFixed(1),
+          '초진 재내원율(2회 이상)': toPercent(revisit2pAll, total.length),
+          '1회 내원율': toPercent(cnt1, total.length),
+          '2회 내원율': toPercent(cnt2, total.length),
+          '3회 내원율': toPercent(cnt3, total.length),
+          '4회 내원율': toPercent(cnt4, total.length),
+          '5회 이상 내원율': toPercent(cnt5p, total.length)
         });
-      });
+      }
 
-      const sortOrder = ["전체", "1진료실", "2진료실", "3진료실", "4진료실", "5진료실"];
+      const sortOrder = ['전체','1진료실','2진료실','3진료실','4진료실','5진료실'];
       result.sort((a, b) => {
-        const ai = sortOrder.indexOf(a.구분);
-        const bi = sortOrder.indexOf(b.구분);
-        if (ai === -1 && bi === -1) return a.구분.localeCompare(b.구분);
+        const ai = sortOrder.indexOf(a['구분']);
+        const bi = sortOrder.indexOf(b['구분']);
+        if (ai === -1 && bi === -1) return a['구분'].localeCompare(b['구분']);
         if (ai === -1) return 1;
         if (bi === -1) return -1;
         return ai - bi;
       });
-
-      document.getElementById('output').innerHTML = renderTable(result);
+      return result;
     }
 
-    function renderTable(data) {
-      if (!data.length) return "";
-      const headers = Object.keys(data[0]);
-      let html = "<table><thead><tr>" + headers.map(h => `<th>${h}</th>`).join('') + "</tr></thead><tbody>";
-      html += data.map(row => `<tr>${headers.map(h => `<td>${row[h]}</td>`).join('')}</tr>`).join('');
-      html += "</tbody></table>";
-      return html;
+    function exportXlsx(jsonRows, filename = '초진_주사_내원_통계.xlsx') {
+      const ws = XLSX.utils.json_to_sheet(jsonRows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, '통계');
+      XLSX.writeFile(wb, filename);
     }
+
+    async function processFiles() {
+      const clinicFiles = $('#clinicFiles').files;
+      const bFile = $('#bFile').files[0];
+      const vFile = $('#vFile').files[0];
+
+      if (!clinicFiles.length) {
+        alert('진료실 파일은 반드시 업로드해야 합니다');
+        return;
+      }
+
+      $('#runBtn').disabled = true;
+      $('#runBtn').textContent = '계산 중…';
+
+      try {
+        const clinicDataList = [];
+        for (const file of clinicFiles) {
+          const data = await readXlsx(file);
+          const roomName = normalizeRoomName(file.name);
+          clinicDataList.push({ name: roomName, data });
+        }
+
+        let bData = null, vData = null;
+        if (bFile) bData = await readXlsx(bFile);
+        if (vFile) vData = await readXlsx(vFile);
+
+        runAnalysis({ clinic: clinicDataList, b: bData, v: vData });
+      } catch (e) {
+        console.error(e);
+        alert('파일 처리 중 오류가 발생했습니다. 파일 형식/내용을 확인해주세요.');
+      } finally {
+        $('#runBtn').disabled = false;
+        $('#runBtn').textContent = '통계 계산';
+      }
+    }
+
+    function runAnalysis(fileMap) {
+      const seenPatient = new Set();
+      const clinicRows = [];
+
+      fileMap.clinic.forEach(room => {
+        const rows = room.data.length > 2 ? room.data.slice(2) : room.data; // 헤더 2줄 스킵
+        rows.forEach(r => {
+          const id = r[0]?.toString().trim();
+          const rrn = r[2]?.toString().trim();
+          if (!id || !rrn || !rrn.includes('-')) return;
+          const key = id + '_' + rrn + '_' + room.name;
+          if (!seenPatient.has(key)) {
+            seenPatient.add(key);
+            clinicRows.push({
+              id,
+              age: calculateAge(rrn),
+              room: room.name,
+              rrnMasked: maskRRN(rrn)
+            });
+          }
+        });
+      });
+
+      const bMap = fileMap.b ? buildCountMap(fileMap.b, 0, 3) : {};
+      const vMap = fileMap.v ? buildCountMap(fileMap.v, 0, 3) : {};
+
+      const merged = clinicRows.map(row => ({
+        id: row.id,
+        age: row.age,
+        room: row.room,
+        rrn: row.rrnMasked, // 출력은 마스킹
+        inj: bMap[row.id] || 0,
+        visit: vMap[row.id] || 0
+      }));
+
+      const stats = computeStats(merged);
+
+      // 요약 카드 업데이트 (전체 기준)
+      const overall = stats.find(s => s['구분'] === '전체') || null;
+      if (overall) {
+        $('#summary').style.display = 'grid';
+        $('#m-total').textContent = overall['초진환자수'];
+        $('#m-inj-rate').textContent = overall['초진 주사처방률'];
+        $('#m-visit-avg').textContent = overall['초진 평균 내원횟수'];
+        $('#m-revisit').textContent = overall['초진 재내원율(2회 이상)'];
+      }
+
+      $('#output').innerHTML = renderTable(stats);
+
+      // 다운로드 버튼 활성화
+      const downloadBtn = $('#downloadBtn');
+      downloadBtn.disabled = false;
+      downloadBtn.onclick = () => exportXlsx(stats);
+    }
+
+    // 이벤트 바인딩
+    $('#runBtn').addEventListener('click', processFiles);
+    $('#clearBtn').addEventListener('click', () => {
+      $('#clinicFiles').value = '';
+      $('#bFile').value = '';
+      $('#vFile').value = '';
+      $('#output').innerHTML = '';
+      $('#summary').style.display = 'none';
+      $('#downloadBtn').disabled = true;
+    });
+  </script>
+  <!-- 연령대별 통계 추가 스크립트 (오버레이드) -->
+  <script>
+    // 연령대 라벨러
+    function getAgeBand(age) {
+      if (age == null || isNaN(age)) return '미상';
+      if (age < 18) return '0-17세';
+      if (age < 30) return '18-29세';
+      if (age < 40) return '30대';
+      if (age < 50) return '40대';
+      if (age < 60) return '50대';
+      if (age < 70) return '60대';
+      if (age < 80) return '70대';
+      return '80세+';
+    }
+
+    // 연령대별(진료실별) 집계
+    function computeAgeBandStats(merged) {
+      const byRoomBand = {};
+      merged.forEach(r => {
+        const room = r.room;
+        const band = getAgeBand(r.age);
+        if (!byRoomBand[room]) byRoomBand[room] = {};
+        if (!byRoomBand[room][band]) byRoomBand[room][band] = [];
+        byRoomBand[room][band].push(r);
+      });
+      const orderRooms = ['1진료실','2진료실','3진료실','4진료실','5진료실'];
+      const orderBands = ['0-17세','18-29세','30대','40대','50대','60대','70대','80세+','미상'];
+      const rows = [];
+      const rooms = Object.keys(byRoomBand).sort((a,b)=>{
+        const ai = orderRooms.indexOf(a), bi = orderRooms.indexOf(b);
+        if (ai===-1 && bi===-1) return a.localeCompare(b);
+        if (ai===-1) return 1; if (bi===-1) return -1; return ai-bi;
+      });
+      rooms.forEach(room => {
+        const bands = byRoomBand[room];
+        orderBands.forEach(band => {
+          const arr = bands[band] || [];
+          if (!arr.length) return;
+          const inj = arr.filter(x => x.inj > 0);
+          const avgVisitAll = average(arr.map(x => x.visit));
+          const revisit2pAll = arr.filter(x => x.visit >= 2).length;
+          rows.push({
+            '진료실': room,
+            '연령대': band,
+            '초진환자수': arr.length,
+            '초진주사환자수': inj.length,
+            '초진 주사처방률': toPercent(inj.length, arr.length),
+            '초진 평균 내원횟수': avgVisitAll.toFixed(1),
+            '초진 재내원율(2회 이상)': toPercent(revisit2pAll, arr.length)
+          });
+        });
+      });
+      return rows;
+    }
+
+    // 기존 runAnalysis를 확장해서 연령대별 표까지 생성하고, 다운로드에 추가 시트 포함
+    (function augmentRunAnalysis(){
+      const prevRun = window.runAnalysis;
+      if (!prevRun) return; // 안전장치
+      window.runAnalysis = function(fileMap){
+        // 원래 계산 로직 실행을 위해 임시 캡처
+        const seenPatient = new Set();
+        const clinicRows = [];
+
+        fileMap.clinic.forEach(room => {
+          const rows = room.data.length > 2 ? room.data.slice(2) : room.data;
+          rows.forEach(r => {
+            const id = r[0]?.toString().trim();
+            const rrn = r[2]?.toString().trim();
+            if (!id || !rrn || !rrn.includes('-')) return;
+            const key = id + '_' + rrn + '_' + room.name;
+            if (!seenPatient.has(key)) {
+              seenPatient.add(key);
+              clinicRows.push({ id, age: calculateAge(rrn), room: room.name, rrnMasked: rrn.slice(0,8)+'******' });
+            }
+          });
+        });
+        const bMap = fileMap.b ? buildCountMap(fileMap.b, 0, 3) : {};
+        const vMap = fileMap.v ? buildCountMap(fileMap.v, 0, 3) : {};
+        const merged = clinicRows.map(row => ({ id: row.id, age: row.age, room: row.room, rrn: row.rrnMasked, inj: bMap[row.id] || 0, visit: vMap[row.id] || 0 }));
+
+        // 기존 통계 생성 (이미 페이지에 있는 computeStats, renderTable, toPercent 등 사용)
+        const stats = computeStats(merged);
+        document.querySelector('#output').innerHTML = renderTable(stats);
+
+        // 연령대별 통계 생성 및 렌더링
+        const byAgeStats = computeAgeBandStats(merged);
+        const byAgeEl = document.querySelector('#byAgeOutput');
+        if (byAgeEl) byAgeEl.innerHTML = renderTable(byAgeStats);
+
+        // 상단 요약 카드 업데이트
+        const overall = stats.find(s => s['구분'] === '전체') || null;
+        if (overall) {
+          document.querySelector('#summary').style.display = 'grid';
+          document.querySelector('#m-total').textContent = overall['초진환자수'];
+          document.querySelector('#m-inj-rate').textContent = overall['초진 주사처방률'];
+          document.querySelector('#m-visit-avg').textContent = overall['초진 평균 내원횟수'];
+          document.querySelector('#m-revisit').textContent = overall['초진 재내원율(2회 이상)'];
+        }
+
+        // 다운로드: 두 시트 함께 저장
+        const downloadBtn = document.querySelector('#downloadBtn');
+        downloadBtn.disabled = false;
+        downloadBtn.onclick = () => {
+          const wb = XLSX.utils.book_new();
+          const ws1 = XLSX.utils.json_to_sheet(stats);
+          XLSX.utils.book_append_sheet(wb, ws1, '요약_진료실');
+          const ws2 = XLSX.utils.json_to_sheet(byAgeStats);
+          XLSX.utils.book_append_sheet(wb, ws2, '연령대별_진료실');
+          XLSX.writeFile(wb, '초진_주사_내원_통계.xlsx');
+        };
+      }
+    })();
   </script>
 </body>
 </html>
